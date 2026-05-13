@@ -1,3 +1,5 @@
+import Card from "./components/ui/Card";
+import MonthNavigator from "./components/ui/MonthNavigator";
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Home, List, Plus, TrendingUp, TrendingDown, Wallet, Building2, Tag, 
@@ -228,20 +230,6 @@ function useTransactionsStore() {
 
   return { transactions, addTransaction, updateTransaction, deleteTransaction, currentUser, setCurrentUser, getBalances, settings, setSettings };
 }
-
-const Card = ({ children, className = "" }) => (
-  <div className={`bg-white rounded-3xl border border-slate-100 shadow-sm p-6 ${className}`}>{children}</div>
-);
-
-const MonthNavigator = ({ currentMonth, onPrev, onNext }) => (
-  <div className="flex justify-center items-center py-2">
-     <button onClick={onPrev} className="p-2 text-[#6a1b9a] hover:bg-purple-50 rounded-full transition-colors"><ChevronLeft size={20}/></button>
-     <span className="px-6 py-1.5 border border-[#6a1b9a] text-[#6a1b9a] rounded-full text-sm font-bold mx-2 min-w-[140px] text-center">
-       {formatMonthYear(currentMonth)}
-     </span>
-     <button onClick={onNext} className="p-2 text-[#6a1b9a] hover:bg-purple-50 rounded-full transition-colors"><ChevronRight size={20}/></button>
-  </div>
-);
 
 const TransactionItem = ({ txn, onDelete, onEdit, settings }) => {
   const [isDeleting, setIsDeleting] = useState(false);
@@ -834,7 +822,16 @@ const ViewHistorial = ({ transactions, monthTransactions, deleteTransaction, onE
                <p className="font-medium text-sm">sin resultados para {formatMonthYear(currentMonth)}</p>
             </div>
           ) : (
-            monthTransactions.map(txn => <TransactionItem key={txn.id} txn={txn} onDelete={deleteTransaction} onEdit={onEdit} settings={settings} />)
+            monthTransactions.map(txn => <TransactionItem
+              key={txn.id}
+              txn={txn}
+              onDelete={deleteTransaction}
+              onEdit={onEdit}
+              settings={settings}
+              iconGallery={ICON_GALLERY}
+              formatter={FORMATTER}
+              dateFormatter={DATE_FORMATTER}
+            />)
           )}
         </div>
       </Card>
