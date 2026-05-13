@@ -1,5 +1,10 @@
 import Card from "./components/ui/Card";
 import MonthNavigator from "./components/ui/MonthNavigator";
+import ViewInicio from "./views/ViewInicio";
+import ViewEmpresas from "./views/ViewEmpresas";
+import ViewHistorial from "./views/ViewHistorial";
+
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Home, List, Plus, TrendingUp, TrendingDown, Wallet, Building2, Tag, 
@@ -670,175 +675,6 @@ const ViewConfiguracion = ({ settings, setSettings }) => {
   );
 };
 
-const ViewInicio = ({ global, monthlySummary }) => (
-  <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 max-w-4xl">
-    <div>
-      <h2 className="text-xl md:text-2xl font-bold text-slate-800 mb-6">vista general</h2>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm flex items-center justify-between group hover:shadow-md transition-shadow">
-          <div className="flex items-center space-x-4">
-            <div className="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center text-white"><Wallet size={20}/></div>
-            <div>
-              <p className="text-xs font-bold text-slate-500">saldo actual (histórico)</p>
-              <p className="text-xl font-bold text-slate-900 no-lowercase">{FORMATTER.format(global.total)}</p>
-            </div>
-          </div>
-          <ChevronRight size={16} className="text-slate-300 group-hover:translate-x-1 transition-transform" />
-        </div>
-        <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm flex items-center justify-between group hover:shadow-md transition-shadow">
-          <div className="flex items-center space-x-4">
-            <div className="w-12 h-12 bg-emerald-500 rounded-full flex items-center justify-center text-white"><TrendingUp size={20}/></div>
-            <div>
-              <p className="text-xs font-bold text-slate-500">ingresos del mes</p>
-              <p className="text-xl font-bold text-slate-900 no-lowercase">{FORMATTER.format(monthlySummary.income)}</p>
-            </div>
-          </div>
-          <ChevronRight size={16} className="text-slate-300 group-hover:translate-x-1 transition-transform" />
-        </div>
-        <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm flex items-center justify-between group hover:shadow-md transition-shadow">
-          <div className="flex items-center space-x-4">
-            <div className="w-12 h-12 bg-rose-500 rounded-full flex items-center justify-center text-white"><TrendingDown size={20}/></div>
-            <div>
-              <p className="text-xs font-bold text-slate-500">gastos del mes</p>
-              <p className="text-xl font-bold text-slate-900 no-lowercase">{FORMATTER.format(monthlySummary.expense)}</p>
-            </div>
-          </div>
-          <ChevronRight size={16} className="text-slate-300 group-hover:translate-x-1 transition-transform" />
-        </div>
-      </div>
-    </div>
-
-    <Card className="mt-8">
-       <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center"><PieIcon size={20} className="mr-2 text-slate-400"/> distribución de liquidez global</h3>
-       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="flex flex-col p-6 rounded-2xl bg-blue-50/50 border border-blue-100">
-             <span className="text-sm font-bold text-blue-600 mb-1">dinero en bancos (bcp/ibk)</span>
-             <span className="text-3xl font-black text-blue-900 no-lowercase">{FORMATTER.format(global.bcp)}</span>
-          </div>
-          <div className="flex flex-col p-6 rounded-2xl bg-emerald-50/50 border border-emerald-100">
-             <span className="text-sm font-bold text-emerald-600 mb-1">efectivo físico</span>
-             <span className="text-3xl font-black text-emerald-900 no-lowercase">{FORMATTER.format(global.cash)}</span>
-          </div>
-       </div>
-    </Card>
-  </div>
-);
-
-const ViewEmpresas = ({ byBrand }) => (
-  <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
-    <h2 className="text-xl md:text-2xl font-bold text-slate-800 mb-6">estado histórico por marcas</h2>
-    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-      {Object.entries(byBrand).map(([brandName, data]) => {
-        const Icon = ICON_GALLERY[data.icon] || Store;
-        return (
-          <Card key={brandName} className="group hover:border-blue-200 transition-colors relative overflow-hidden">
-            <div className={`absolute top-0 right-0 w-32 h-32 ${data.color} opacity-10 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none`}></div>
-            <div className="flex justify-between items-center mb-6 relative z-10">
-              <h3 className="text-lg font-black text-slate-800 flex items-center capitalize">
-                <div className={`w-8 h-8 rounded-xl ${data.color} text-white flex items-center justify-center mr-3 shadow-md`}>
-                  <Icon size={16}/>
-                </div>
-                {brandName}
-              </h3>
-              <span className="text-xl font-bold text-slate-900 no-lowercase">{FORMATTER.format(data.total)}</span>
-            </div>
-            <div className="space-y-3 relative z-10">
-               <div className="flex justify-between items-center p-3 rounded-xl bg-slate-50 text-sm">
-                  <span className="font-bold text-slate-500 flex items-center"><div className="w-2 h-2 rounded-full bg-[#6a1b9a] mr-2"></div>billeteras (yape)</span>
-                  <span className="font-bold text-slate-800 no-lowercase">{FORMATTER.format(data.yape)}</span>
-               </div>
-               <div className="flex justify-between items-center p-3 rounded-xl bg-slate-50 text-sm">
-                  <span className="font-bold text-slate-500 flex items-center"><div className="w-2 h-2 rounded-full bg-blue-500 mr-2"></div>bancos</span>
-                  <span className="font-bold text-slate-800 no-lowercase">{FORMATTER.format(data.bcp)}</span>
-               </div>
-               <div className="flex justify-between items-center p-3 rounded-xl bg-slate-50 text-sm">
-                  <span className="font-bold text-slate-500 flex items-center"><div className="w-2 h-2 rounded-full bg-emerald-500 mr-2"></div>efectivo</span>
-                  <span className="font-bold text-slate-800 no-lowercase">{FORMATTER.format(data.cash)}</span>
-               </div>
-            </div>
-          </Card>
-        )
-      })}
-    </div>
-  </div>
-);
-
-const ViewHistorial = ({ transactions, monthTransactions, deleteTransaction, onEdit, monthlySummary, global, currentMonth, onPrev, onNext, settings }) => {
-  const handleExport = () => {
-    const headers = ['ID', 'Fecha', 'Tipo', 'Marca_Origen', 'Destino', 'Categoría', 'Monto', 'Usuario', 'Nota', 'Detalle Pagos'];
-    const rows = monthTransactions.map(t => {
-      const date = new Date(t.createdAt).toLocaleString('es-PE');
-      const dest = t.type === 'transferencia' ? t.toBrand : '';
-      const brand = t.type === 'transferencia' ? t.fromBrand : t.brand;
-      const splits = t.splits ? t.splits.map(s => `${s.method}:${s.amount}`).join(' | ') : t.toMethod;
-      const cleanStr = (s) => `"${(s||'').toString().replace(/"/g, '""')}"`;
-      return [t.id, date, t.type, brand, dest, t.category || 'transferencia', t.amount, t.createdBy, cleanStr(t.note), cleanStr(splits)].join(',');
-    });
-    const csvContent = "data:text/csv;charset=utf-8,\uFEFF" + [headers.join(','), ...rows].join('\n');
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `movimientos_${currentMonth.getFullYear()}_${currentMonth.getMonth()+1}.csv`);
-    document.body.appendChild(link); link.click(); document.body.removeChild(link);
-  };
-
-  return (
-    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-         <button className="bg-[#6a1b9a] text-white px-5 py-2.5 rounded-full font-bold text-sm flex items-center shadow-lg shadow-purple-500/20">
-            <span className="mr-2">todas</span> <ChevronRight size={14} className="rotate-90"/>
-         </button>
-         <div className="flex space-x-2">
-            <button className="w-10 h-10 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-500 hover:bg-slate-50"><Search size={16}/></button>
-            <button className="w-10 h-10 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-500 hover:bg-slate-50"><Filter size={16}/></button>
-            <button onClick={handleExport} className="w-10 h-10 rounded-full bg-[#6a1b9a] text-white flex items-center justify-center hover:scale-105 shadow-md transition-transform" title="descargar csv mensual"><Download size={16}/></button>
-         </div>
-      </div>
-
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 overflow-x-auto pb-2">
-        {[
-          { t: 'saldo histórico', v: global.total, i: Wallet, c: 'bg-blue-500' },
-          { t: 'ingresos (mes)', v: monthlySummary.income, i: TrendingUp, c: 'bg-emerald-500' },
-          { t: 'gastos (mes)', v: monthlySummary.expense, i: TrendingDown, c: 'bg-rose-500' },
-          { t: 'balance (mes)', v: monthlySummary.income - monthlySummary.expense, i: Activity, c: 'bg-[#6a1b9a]' }
-        ].map((k, i) => (
-          <div key={i} className="bg-white p-4 rounded-3xl border border-slate-100 shadow-sm min-w-[160px] flex items-center space-x-3">
-             <div className={`w-10 h-10 ${k.c} rounded-full flex items-center justify-center text-white shrink-0`}><k.i size={18}/></div>
-             <div>
-                <p className="text-[10px] font-bold text-slate-400 leading-tight">{k.t}</p>
-                <p className="text-sm md:text-base font-bold text-slate-800 no-lowercase">{FORMATTER.format(k.v)}</p>
-             </div>
-          </div>
-        ))}
-      </div>
-
-      <Card className="p-0 overflow-hidden">
-        <MonthNavigator currentMonth={currentMonth} onPrev={onPrev} onNext={onNext} />
-        
-        <div className="bg-slate-50/50 p-4 md:p-6 min-h-[300px]">
-          {monthTransactions.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-slate-400">
-               <div className="w-32 h-32 mb-4 opacity-50 bg-[url('https://cdn-icons-png.flaticon.com/512/7486/7486747.png')] bg-contain bg-no-repeat bg-center"></div>
-               <p className="font-medium text-sm">sin resultados para {formatMonthYear(currentMonth)}</p>
-            </div>
-          ) : (
-            monthTransactions.map(txn => <TransactionItem
-              key={txn.id}
-              txn={txn}
-              onDelete={deleteTransaction}
-              onEdit={onEdit}
-              settings={settings}
-              iconGallery={ICON_GALLERY}
-              formatter={FORMATTER}
-              dateFormatter={DATE_FORMATTER}
-            />)
-          )}
-        </div>
-      </Card>
-    </div>
-  );
-};
-
 const ViewPresupuestos = ({ currentMonth, onPrev, onNext }) => (
   <div className="animate-in fade-in slide-in-from-bottom-4">
     <div className="flex flex-col lg:flex-row gap-6">
@@ -1023,8 +859,27 @@ export default function App() {
         <main className="flex-1 overflow-y-auto p-5 md:p-8 pb-32 md:pb-8 scrollbar-hide">
           <div className="max-w-6xl mx-auto">
              {currentTab === 'inicio' && <ViewInicio global={global} monthlySummary={monthlySummary} />}
-             {currentTab === 'empresas' && <ViewEmpresas byBrand={byBrand} />}
-             {currentTab === 'historial' && <ViewHistorial transactions={transactions} monthTransactions={monthTransactions} deleteTransaction={deleteTransaction} onEdit={openEditModal} monthlySummary={monthlySummary} global={global} currentMonth={selectedMonth} onPrev={handlePrevMonth} onNext={handleNextMonth} settings={settings} />}
+             {currentTab === 'empresas' && (
+                <ViewEmpresas
+                  byBrand={byBrand}
+                  iconGallery={ICON_GALLERY}
+                />
+              )}
+             {currentTab === 'historial' && (
+                <ViewHistorial
+                  monthTransactions={monthTransactions}
+                  deleteTransaction={deleteTransaction}
+                  onEdit={openEditModal}
+                  monthlySummary={monthlySummary}
+                  global={global}
+                  currentMonth={selectedMonth}
+                  onPrev={handlePrevMonth}
+                  onNext={handleNextMonth}
+                  settings={settings}
+                  iconGallery={ICON_GALLERY}
+                  dateFormatter={DATE_FORMATTER}
+                />
+              )}
              {currentTab === 'presupuestos' && <ViewPresupuestos currentMonth={selectedMonth} onPrev={handlePrevMonth} onNext={handleNextMonth} />}
              {currentTab === 'informes' && <ViewInformes monthTransactions={monthTransactions} currentMonth={selectedMonth} onPrev={handlePrevMonth} onNext={handleNextMonth} settings={settings} />}
              {currentTab === 'configuracion' && <ViewConfiguracion settings={settings} setSettings={setSettings} />}
