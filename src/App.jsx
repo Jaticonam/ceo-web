@@ -1,5 +1,3 @@
-import { useMemo, useState } from "react";
-
 import ViewInicio from "./views/ViewInicio";
 import ViewEmpresas from "./views/ViewEmpresas";
 import ViewHistorial from "./views/ViewHistorial";
@@ -13,9 +11,12 @@ import DesktopSidebar from "./components/layout/DesktopSidebar";
 import AppHeader from "./components/layout/AppHeader";
 import MobileBottomNav from "./components/layout/MobileBottomNav";
 
-import useTransactionsStore from "./hooks/useTransactionsStore";
-import useAnalytics from "./hooks/useAnalytics";
-import { filterTransactionsByMonth } from "./services/finance/filters";
+import { useAppContext } from "./context/AppContext";
+
+import useUiState from "./hooks/useUiState";
+import useMonthNavigation from "./hooks/useMonthNavigation";
+import useTransactionActions from "./hooks/useTransactionActions";
+import useNavigationState from "./hooks/useNavigationState";
 
 import { USERS } from "./constants/users";
 import { ICON_GALLERY, DATE_FORMATTER } from "./constants/ui";
@@ -23,78 +24,47 @@ import { MENU_ITEMS, DESKTOP_MENU_ITEMS } from "./constants/menu";
 
 export default function App() {
   const {
-    transactions,
     addTransaction,
     updateTransaction,
     deleteTransaction,
+
     currentUser,
     setCurrentUser,
-    getBalances,
+
     settings,
     setSettings,
-  } = useTransactionsStore();
 
-  const [currentTab, setCurrentTab] = useState("inicio");
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingTxn, setEditingTxn] = useState(null);
-  const [selectedMonth, setSelectedMonth] = useState(new Date());
+    selectedMonth,
+    setSelectedMonth,
 
-  const openNewModal = () => {
-    setEditingTxn(null);
-    setIsModalOpen(true);
-  };
+    monthTransactions,
 
-  const closeModal = () => {
-    setIsModalOpen(false);
-    setEditingTxn(null);
-  };
+    global,
+    byBrand,
+    monthlySummary,
 
-  const openEditModal = (transaction) => {
-    setEditingTxn(transaction);
-    setIsModalOpen(true);
-  };
-
-  const handlePrevMonth = () => {
-    setSelectedMonth(
-      (prev) =>
-        new Date(prev.getFullYear(), prev.getMonth() - 1, 1)
-    );
-  };
-
-  const handleNextMonth = () => {
-    setSelectedMonth(
-      (prev) =>
-        new Date(prev.getFullYear(), prev.getMonth() + 1, 1)
-    );
-  };
-
-  const monthTransactions = useMemo(() => {
-    return filterTransactionsByMonth({
-      transactions,
-      selectedMonth,
-    });
-  }, [transactions, selectedMonth]);
-
-  const { global, byBrand } = getBalances();
-
-  const { global: monthlySummary } =
-    getBalances(monthTransactions);
-
-  const {
     expenseChartData,
     monthlyTrendData,
-  } = useAnalytics({
-    transactions,
-    monthTransactions,
+  } = useAppContext();
+
+  const { currentTab, setCurrentTab } = useNavigationState();
+
+  const {
+    isModalOpen,
+    editingTxn,
+    openNewModal,
+    openEditModal,
+    closeModal,
+  } = useUiState();
+
+  const { handlePrevMonth, handleNextMonth } = useMonthNavigation({
+    setSelectedMonth,
   });
 
-  const handleSave = (data) => {
-    if (data.id) {
-      updateTransaction(data.id, data);
-    } else {
-      addTransaction(data);
-    }
-  };
+  const { handleSave } = useTransactionActions({
+    addTransaction,
+    updateTransaction,
+  });
 
   return (
     <div className="min-h-screen bg-[#f4f7fa] text-slate-900 flex overflow-hidden selection:bg-purple-200">
