@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import usePersistentState from "./usePersistentState";
 
 import { USERS } from "../constants/users";
 import { DEFAULT_SETTINGS } from "../constants/defaultSettings";
@@ -12,58 +12,20 @@ import {
 } from "../services/finance/transactions";
 
 export default function useTransactionsStore() {
-  const [currentUser, setCurrentUser] = useState(() => {
-    return localStorage.getItem("ceo_user_v4") || USERS[0];
-  });
+  const [currentUser, setCurrentUser] = usePersistentState(
+    "ceo_user_v4",
+    USERS[0]
+  );
 
-  const [transactions, setTransactions] = useState(() => {
-    try {
-      const saved = localStorage.getItem(
-        "ceo_transactions_v4"
-      );
+  const [transactions, setTransactions] = usePersistentState(
+    "ceo_transactions_v4",
+    SEED_DATA
+  );
 
-      return saved
-        ? JSON.parse(saved)
-        : SEED_DATA;
-    } catch {
-      return SEED_DATA;
-    }
-  });
-
-  const [settings, setSettings] = useState(() => {
-    try {
-      const saved = localStorage.getItem(
-        "ceo_settings_v4"
-      );
-
-      return saved
-        ? JSON.parse(saved)
-        : DEFAULT_SETTINGS;
-    } catch {
-      return DEFAULT_SETTINGS;
-    }
-  });
-
-  useEffect(() => {
-    localStorage.setItem(
-      "ceo_transactions_v4",
-      JSON.stringify(transactions)
-    );
-  }, [transactions]);
-
-  useEffect(() => {
-    localStorage.setItem(
-      "ceo_user_v4",
-      currentUser
-    );
-  }, [currentUser]);
-
-  useEffect(() => {
-    localStorage.setItem(
-      "ceo_settings_v4",
-      JSON.stringify(settings)
-    );
-  }, [settings]);
+  const [settings, setSettings] = usePersistentState(
+    "ceo_settings_v4",
+    DEFAULT_SETTINGS
+  );
 
   const addTransaction = (transactionData) => {
     const newTransaction = createTransaction({
@@ -71,16 +33,10 @@ export default function useTransactionsStore() {
       currentUser,
     });
 
-    setTransactions((current) => [
-      newTransaction,
-      ...current,
-    ]);
+    setTransactions((current) => [newTransaction, ...current]);
   };
 
-  const updateTransaction = (
-    id,
-    updatedData
-  ) => {
+  const updateTransaction = (id, updatedData) => {
     setTransactions((current) =>
       updateTransactionById({
         transactions: current,
@@ -92,16 +48,11 @@ export default function useTransactionsStore() {
 
   const deleteTransaction = (id) => {
     setTransactions((current) =>
-      current.filter(
-        (transaction) =>
-          transaction.id !== id
-      )
+      current.filter((transaction) => transaction.id !== id)
     );
   };
 
-  const getBalances = (
-    transactionsToCalculate = transactions
-  ) => {
+  const getBalances = (transactionsToCalculate = transactions) => {
     return calculateBalances({
       transactions: transactionsToCalculate,
       settings,

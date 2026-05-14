@@ -55,7 +55,24 @@ export default function AddTransactionModal({
 
   const [note, setNote] = useState("");
   const [inputDate, setInputDate] = useState(formatInputDate());
+  const [useCustomDate, setUseCustomDate] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+
+
+  const isIncome = type === "ingreso";
+  const isExpense = type === "gasto";
+  const isTransfer = type === "transferencia";
+
+  const currentTotal = splits.reduce(
+    (sum, split) => sum + (parseFloat(split.amount) || 0),
+    0
+  );
+
+  const primaryColor = isIncome
+    ? "emerald"
+    : isExpense
+      ? "rose"
+      : "blue";
 
   useEffect(() => {
     if (!isOpen) return;
@@ -63,7 +80,13 @@ export default function AddTransactionModal({
     if (initialData) {
       setStep(2);
       setType(initialData.type);
-      setInputDate(formatInputDate(initialData.createdAt));
+
+      setInputDate(
+        formatInputDate(initialData.createdAt)
+      );
+
+      setUseCustomDate(true);
+
       setNote(initialData.note || "");
 
       if (initialData.type === "transferencia") {
@@ -75,9 +98,13 @@ export default function AddTransactionModal({
       } else {
         setBrand(initialData.brand);
         setCategory(initialData.category);
+
         setSplits(
           initialData.splits || [
-            { method: methodNames[0] || "", amount: "" },
+            {
+              method: methodNames[0] || "",
+              amount: "",
+            },
           ]
         );
       }
@@ -100,11 +127,6 @@ export default function AddTransactionModal({
     setToMethod(methodNames[0] || "");
   }, [isOpen, initialData, settings]);
 
-  const currentTotal = splits.reduce(
-    (sum, split) => sum + (parseFloat(split.amount) || 0),
-    0
-  );
-
   if (!isOpen) return null;
 
   const handleSelectType = (selectedType) => {
@@ -125,7 +147,16 @@ export default function AddTransactionModal({
     event.preventDefault();
     setErrorMsg("");
 
-    const finalDate = new Date(inputDate).toISOString();
+    const selectedDate = useCustomDate
+      ? new Date(inputDate)
+      : new Date();
+
+    if (selectedDate > new Date()) {
+      setErrorMsg("no puedes registrar movimientos futuros todavía.");
+      return;
+    }
+
+    const finalDate = selectedDate.toISOString();
 
     let dataToSave = {
       type,
@@ -137,7 +168,7 @@ export default function AddTransactionModal({
       dataToSave.id = initialData.id;
     }
 
-    if (type === "transferencia") {
+    if (isTransfer) {
       if (!transferAmount || parseFloat(transferAmount) <= 0) {
         setErrorMsg("ingresa un monto válido.");
         return;
@@ -173,25 +204,33 @@ export default function AddTransactionModal({
     onClose();
   };
 
+  const actionLabel = initialData
+    ? "guardar cambios"
+    : isIncome
+      ? "registrar ingreso"
+      : isExpense
+        ? "registrar gasto"
+        : "registrar transferencia";
+
   return (
-    <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-slate-900/40 backdrop-blur-sm p-0 sm:p-4 transition-opacity">
-      <div className="bg-white w-full max-w-lg rounded-t-[2.5rem] sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in slide-in-from-bottom-8">
+    <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-slate-900/40 backdrop-blur-sm p-0 sm:p-4">
+      <div className="bg-white w-full max-w-xl rounded-t-[2.5rem] sm:rounded-[2rem] shadow-2xl overflow-hidden flex flex-col max-h-[92vh] animate-in slide-in-from-bottom-8">
         {step === 1 ? (
-          <div className="p-6 md:p-8 animate-in fade-in slide-in-from-bottom-4 duration-300">
+          <div className="p-6 md:p-8">
             <div className="flex items-start justify-between mb-8">
               <div>
                 <h2 className="text-2xl font-black text-slate-800">
-                  nuevo registro
+                  nuevo movimiento
                 </h2>
 
-                <p className="text-sm font-medium text-slate-500 mt-1">
-                  ¿qué tipo de operación deseas realizar?
+                <p className="text-sm font-bold text-slate-400 mt-1">
+                  elige qué quieres registrar
                 </p>
               </div>
 
               <button
                 onClick={onClose}
-                className="p-3 -mt-2 -mr-2 bg-slate-50 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-600 transition-colors"
+                className="p-3 -mt-2 -mr-2 bg-slate-50 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-600"
               >
                 <X size={20} />
               </button>
@@ -212,7 +251,7 @@ export default function AddTransactionModal({
                   </h3>
 
                   <p className="text-sm font-bold text-emerald-600/70 mt-0.5">
-                    registrar entrada de dinero
+                    entrada de dinero
                   </p>
                 </div>
               </button>
@@ -231,7 +270,7 @@ export default function AddTransactionModal({
                   </h3>
 
                   <p className="text-sm font-bold text-rose-600/70 mt-0.5">
-                    registrar salida o pago
+                    salida o pago
                   </p>
                 </div>
               </button>
@@ -246,11 +285,11 @@ export default function AddTransactionModal({
 
                 <div className="ml-5 text-left">
                   <h3 className="text-xl font-black text-blue-800">
-                    mover dinero
+                    transferencia
                   </h3>
 
                   <p className="text-sm font-bold text-blue-600/70 mt-0.5">
-                    transferencias entre tus cuentas
+                    mover dinero entre cuentas
                   </p>
                 </div>
               </button>
@@ -258,314 +297,382 @@ export default function AddTransactionModal({
           </div>
         ) : (
           <div className="flex flex-col h-full overflow-hidden">
-            <div className="flex items-center justify-between p-6 border-b border-slate-100 shrink-0 bg-white shadow-sm z-10">
-              <div className="flex items-center">
+            <div className="flex items-center justify-between p-5 border-b border-slate-100 shrink-0 bg-white z-10">
+              <div className="flex items-center min-w-0">
                 {!initialData && (
                   <button
                     type="button"
                     onClick={() => setStep(1)}
-                    className="p-2 mr-3 bg-slate-50 hover:bg-slate-100 rounded-full text-slate-500 transition-colors"
+                    className="p-2 mr-3 bg-slate-50 hover:bg-slate-100 rounded-full text-slate-500"
                   >
                     <ChevronLeft size={20} />
                   </button>
                 )}
 
-                <h2
-                  className={`text-xl font-black ${
-                    type === "ingreso"
-                      ? "text-emerald-600"
-                      : type === "gasto"
-                        ? "text-rose-600"
-                        : "text-blue-600"
-                  }`}
-                >
-                  {initialData ? "editar " : "registro de "}
-                  {type}
-                </h2>
+                <div>
+                  <p className="text-xs font-black text-slate-400 uppercase tracking-wider">
+                    {initialData ? "editando" : "nuevo registro"}
+                  </p>
+
+                  <h2
+                    className={`text-xl font-black ${
+                      isIncome
+                        ? "text-emerald-600"
+                        : isExpense
+                          ? "text-rose-600"
+                          : "text-blue-600"
+                    }`}
+                  >
+                    {isIncome
+                      ? "ingreso"
+                      : isExpense
+                        ? "gasto"
+                        : "transferencia"}
+                  </h2>
+                </div>
               </div>
 
               <button
                 onClick={onClose}
-                className="p-2 bg-slate-50 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-600 transition-colors"
+                className="p-2 bg-slate-50 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-600"
               >
                 <X size={20} />
               </button>
             </div>
 
-            <form
-              onSubmit={handleSubmit}
-              className="p-6 space-y-6 overflow-y-auto animate-in fade-in slide-in-from-right-4 duration-300 pb-20 sm:pb-6"
-            >
-              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 flex items-center">
-                <Calendar size={18} className="text-slate-400 mr-3 shrink-0" />
+            <form onSubmit={handleSubmit} className="overflow-y-auto">
+              <div className="p-5 space-y-5 pb-32">
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                  {!useCustomDate ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setUseCustomDate(true);
+                        setInputDate(formatInputDate());
+                      }}
+                      className="flex w-full items-center justify-between text-left"
+                    >
+                      <span>
+                        <span className="block text-xs font-black text-slate-500">
+                          fecha automática
+                        </span>
+                        <span className="block text-xs font-bold text-slate-400">
+                          se registrará con la fecha y hora actual
+                        </span>
+                      </span>
 
-                <div className="flex-1">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">
-                    fecha y hora del movimiento
-                  </label>
+                      <span className="text-xs font-black text-[#6a1b9a]">
+                        cambiar fecha
+                      </span>
+                    </button>
+                  ) : (
+                    <div className="flex items-center gap-3">
+                      <Calendar size={18} className="text-slate-400 shrink-0" />
 
-                  <input
-                    type="datetime-local"
-                    value={inputDate}
-                    onChange={(event) => setInputDate(event.target.value)}
-                    className="w-full bg-transparent text-sm font-bold text-slate-800 outline-none no-lowercase"
-                    required
-                  />
+                      <div className="flex-1">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">
+                          fecha personalizada
+                        </label>
+
+                        <input
+                          type="datetime-local"
+                          value={inputDate}
+                          max={formatInputDate()}
+                          onChange={(event) => setInputDate(event.target.value)}
+                          className="w-full bg-transparent text-sm font-bold text-slate-800 outline-none no-lowercase"
+                          required
+                        />
+                      </div>
+
+                      {!initialData && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setUseCustomDate(false);
+                            setInputDate(formatInputDate());
+                          }}
+                          className="text-xs font-black text-slate-400 hover:text-rose-500"
+                        >
+                          quitar
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
-              </div>
 
-              {type === "transferencia" ? (
-                <div className="space-y-5">
-                  <div className="p-4 border border-rose-100 bg-rose-50/50 rounded-2xl">
-                    <label className="text-xs font-bold text-rose-600 block mb-3">
-                      origen (sale de)
-                    </label>
+                {isTransfer ? (
+                  <div className="space-y-4">
+                    <div className="rounded-2xl border border-rose-100 bg-rose-50/60 p-4">
+                      <p className="text-xs font-black text-rose-600 mb-3">
+                        origen · sale de
+                      </p>
 
-                    <div className="grid grid-cols-2 gap-3">
-                      <select
-                        value={fromBrand}
-                        onChange={(event) =>
-                          setFromBrand(event.target.value)
-                        }
-                        className="w-full p-3 bg-white border border-rose-100 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-rose-200"
-                      >
-                        {brandNames.map((item) => (
-                          <option key={item} value={item}>
-                            {item}
-                          </option>
-                        ))}
-                      </select>
-
-                      <select
-                        value={fromMethod}
-                        onChange={(event) =>
-                          setFromMethod(event.target.value)
-                        }
-                        className="w-full p-3 bg-white border border-rose-100 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-rose-200"
-                      >
-                        {methodNames.map((item) => (
-                          <option key={item} value={item}>
-                            {item}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-
-                  <div className="p-4 border border-emerald-100 bg-emerald-50/50 rounded-2xl">
-                    <label className="text-xs font-bold text-emerald-600 block mb-3">
-                      destino (entra a)
-                    </label>
-
-                    <div className="grid grid-cols-2 gap-3">
-                      <select
-                        value={toBrand}
-                        onChange={(event) => setToBrand(event.target.value)}
-                        className="w-full p-3 bg-white border border-emerald-100 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-emerald-200"
-                      >
-                        {brandNames.map((item) => (
-                          <option key={item} value={item}>
-                            {item}
-                          </option>
-                        ))}
-                      </select>
-
-                      <select
-                        value={toMethod}
-                        onChange={(event) => setToMethod(event.target.value)}
-                        className="w-full p-3 bg-white border border-emerald-100 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-emerald-200"
-                      >
-                        {methodNames.map((item) => (
-                          <option key={item} value={item}>
-                            {item}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-
-                  <div className="relative">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xl no-lowercase">
-                      s/
-                    </span>
-
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={transferAmount}
-                      onChange={(event) =>
-                        setTransferAmount(event.target.value)
-                      }
-                      placeholder="0.00"
-                      className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-2xl font-bold text-slate-800 outline-none focus:bg-white focus:ring-2 focus:ring-blue-500 transition-all no-lowercase"
-                    />
-                  </div>
-                </div>
-              ) : (
-                <div className="space-y-5">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="text-xs font-bold text-slate-500 block mb-2">
-                        marca
-                      </label>
-
-                      <select
-                        value={brand}
-                        onChange={(event) => setBrand(event.target.value)}
-                        className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium outline-none focus:bg-white focus:border-slate-400 transition-colors"
-                      >
-                        {brandNames.map((item) => (
-                          <option key={item} value={item}>
-                            {item}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="text-xs font-bold text-slate-500 block mb-2">
-                        categoría
-                      </label>
-
-                      <select
-                        value={category}
-                        onChange={(event) => setCategory(event.target.value)}
-                        className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium outline-none focus:bg-white focus:border-slate-400 transition-colors"
-                      >
-                        {(type === "ingreso" ? incomeCats : expenseCats).map(
-                          (item) => (
+                      <div className="grid grid-cols-2 gap-3">
+                        <select
+                          value={fromBrand}
+                          onChange={(event) =>
+                            setFromBrand(event.target.value)
+                          }
+                          className="w-full p-3 bg-white border border-rose-100 rounded-xl text-sm font-bold outline-none"
+                        >
+                          {brandNames.map((item) => (
                             <option key={item} value={item}>
                               {item}
                             </option>
-                          )
-                        )}
-                      </select>
+                          ))}
+                        </select>
+
+                        <select
+                          value={fromMethod}
+                          onChange={(event) =>
+                            setFromMethod(event.target.value)
+                          }
+                          className="w-full p-3 bg-white border border-rose-100 rounded-xl text-sm font-bold outline-none"
+                        >
+                          {methodNames.map((item) => (
+                            <option key={item} value={item}>
+                              {item}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4">
+                      <p className="text-xs font-black text-emerald-600 mb-3">
+                        destino · entra a
+                      </p>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <select
+                          value={toBrand}
+                          onChange={(event) => setToBrand(event.target.value)}
+                          className="w-full p-3 bg-white border border-emerald-100 rounded-xl text-sm font-bold outline-none"
+                        >
+                          {brandNames.map((item) => (
+                            <option key={item} value={item}>
+                              {item}
+                            </option>
+                          ))}
+                        </select>
+
+                        <select
+                          value={toMethod}
+                          onChange={(event) => setToMethod(event.target.value)}
+                          className="w-full p-3 bg-white border border-emerald-100 rounded-xl text-sm font-bold outline-none"
+                        >
+                          {methodNames.map((item) => (
+                            <option key={item} value={item}>
+                              {item}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="relative">
+                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-black text-xl no-lowercase">
+                        s/
+                      </span>
+
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={transferAmount}
+                        onChange={(event) =>
+                          setTransferAmount(event.target.value)
+                        }
+                        placeholder="0.00"
+                        className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-2xl font-black text-slate-800 outline-none focus:bg-white focus:ring-2 focus:ring-blue-500 no-lowercase"
+                      />
                     </div>
                   </div>
+                ) : (
+                  <div className="space-y-5">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-xs font-bold text-slate-500 block mb-2">
+                          empresa
+                        </label>
 
-                  <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200">
-                    <label className="text-xs font-bold text-slate-500 block mb-3">
-                      medios de pago (dividir)
-                    </label>
+                        <select
+                          value={brand}
+                          onChange={(event) => setBrand(event.target.value)}
+                          className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold outline-none focus:bg-white"
+                        >
+                          {brandNames.map((item) => (
+                            <option key={item} value={item}>
+                              {item}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
 
-                    <div className="space-y-3">
-                      {splits.map((split, index) => (
-                        <div key={index} className="flex gap-2 items-center">
-                          <select
-                            value={split.method}
-                            onChange={(event) => {
-                              const nextSplits = [...splits];
-                              nextSplits[index].method = event.target.value;
-                              setSplits(nextSplits);
-                            }}
-                            className="flex-1 p-3 bg-white border border-slate-200 rounded-xl text-xs font-medium outline-none focus:border-slate-400"
-                          >
-                            {methodNames.map((item) => (
-                              <option key={item} value={item}>
-                                {item}
-                              </option>
-                            ))}
-                          </select>
+                      <div>
+                        <label className="text-xs font-bold text-slate-500 block mb-2">
+                          categoría
+                        </label>
 
-                          <input
-                            type="number"
-                            step="0.01"
-                            value={split.amount}
-                            onChange={(event) => {
-                              const nextSplits = [...splits];
-                              nextSplits[index].amount = event.target.value;
-                              setSplits(nextSplits);
-                            }}
-                            placeholder="0.00"
-                            className="w-24 p-3 bg-white border border-slate-200 rounded-xl text-sm font-bold outline-none focus:border-slate-400 no-lowercase"
-                            required={splits.length === 1}
-                          />
+                        <select
+                          value={category}
+                          onChange={(event) => setCategory(event.target.value)}
+                          className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold outline-none focus:bg-white"
+                        >
+                          {(isIncome ? incomeCats : expenseCats).map((item) => (
+                            <option key={item} value={item}>
+                              {item}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
 
-                          {splits.length > 1 && (
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setSplits(
-                                  splits.filter(
-                                    (_, splitIndex) => splitIndex !== index
-                                  )
-                                )
-                              }
-                              className="p-2 text-slate-400 hover:text-rose-500 bg-white border border-slate-200 rounded-xl"
+                    <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                      <div className="flex items-center justify-between mb-3">
+                        <label className="text-xs font-black text-slate-500">
+                          medios de pago
+                        </label>
+
+                        <span className="text-xs font-bold text-slate-400">
+                          dividir pago
+                        </span>
+                      </div>
+
+                      <div className="space-y-2">
+                        {splits.map((split, index) => (
+                          <div key={index} className="flex gap-2 items-center">
+                            <select
+                              value={split.method}
+                              onChange={(event) => {
+                                const nextSplits = [...splits];
+                                nextSplits[index].method = event.target.value;
+                                setSplits(nextSplits);
+                              }}
+                              className="flex-1 p-3 bg-white border border-slate-200 rounded-xl text-sm font-bold outline-none"
                             >
-                              <X size={18} />
-                            </button>
-                          )}
-                        </div>
-                      ))}
-                    </div>
+                              {methodNames.map((item) => (
+                                <option key={item} value={item}>
+                                  {item}
+                                </option>
+                              ))}
+                            </select>
 
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setSplits([
-                          ...splits,
-                          { method: methodNames[0] || "", amount: "" },
-                        ])
-                      }
-                      className="mt-3 w-full py-3 text-xs font-bold text-slate-500 bg-white border border-slate-200 border-dashed hover:border-slate-300 rounded-xl transition-colors"
-                    >
-                      <Plus size={14} className="inline mr-1" />
-                      agregar método
-                    </button>
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={split.amount}
+                              onChange={(event) => {
+                                const nextSplits = [...splits];
+                                nextSplits[index].amount = event.target.value;
+                                setSplits(nextSplits);
+                              }}
+                              placeholder="0.00"
+                              className="w-28 p-3 bg-white border border-slate-200 rounded-xl text-sm font-black outline-none no-lowercase"
+                              required={splits.length === 1}
+                            />
 
-                    <div className="mt-5 pt-4 border-t border-slate-200/60 flex justify-between items-center bg-white p-4 rounded-xl shadow-sm">
-                      <span className="text-sm font-bold text-slate-500">
-                        total en tiempo real:
-                      </span>
+                            {splits.length > 1 && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setSplits(
+                                    splits.filter(
+                                      (_, splitIndex) => splitIndex !== index
+                                    )
+                                  )
+                                }
+                                className="p-2 text-slate-400 hover:text-rose-500 bg-white border border-slate-200 rounded-xl"
+                              >
+                                <X size={18} />
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                      </div>
 
-                      <span
-                        className={`text-2xl font-black no-lowercase ${
-                          type === "ingreso"
-                            ? "text-emerald-600"
-                            : "text-rose-600"
-                        }`}
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setSplits([
+                            ...splits,
+                            { method: methodNames[0] || "", amount: "" },
+                          ])
+                        }
+                        className="mt-3 w-full py-3 text-sm font-black text-slate-500 bg-white border border-slate-200 border-dashed hover:border-[#6a1b9a] hover:text-[#6a1b9a] rounded-xl transition-colors"
                       >
-                        {FORMATTER.format(currentTotal)}
-                      </span>
+                        <Plus size={15} className="inline mr-1" />
+                        agregar método
+                      </button>
                     </div>
                   </div>
+                )}
+
+                <div>
+                  <label className="text-xs font-bold text-slate-500 block mb-2">
+                    nota opcional
+                  </label>
+
+                  <input
+                    type="text"
+                    value={note}
+                    onChange={(event) => setNote(event.target.value)}
+                    placeholder="detalle de la operación..."
+                    className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:bg-white focus:ring-2 focus:ring-slate-900"
+                  />
                 </div>
-              )}
 
-              <div>
-                <label className="text-xs font-bold text-slate-500 block mb-2">
-                  nota (opcional)
-                </label>
-
-                <input
-                  type="text"
-                  value={note}
-                  onChange={(event) => setNote(event.target.value)}
-                  placeholder="detalle de la operación..."
-                  className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:bg-white focus:ring-2 focus:ring-slate-900 transition-all"
-                />
+                {errorMsg && (
+                  <div className="p-3 bg-rose-50 text-rose-600 text-sm font-bold rounded-xl flex items-center">
+                    <AlertCircle size={16} className="mr-2" />
+                    {errorMsg}
+                  </div>
+                )}
               </div>
 
-              {errorMsg && (
-                <div className="p-3 bg-rose-50 text-rose-600 text-sm font-bold rounded-xl flex items-center">
-                  <AlertCircle size={16} className="mr-2" />
-                  {errorMsg}
-                </div>
-              )}
+              <div className="sticky bottom-0 bg-white border-t border-slate-100 p-5 shadow-[0_-10px_30px_rgba(15,23,42,0.06)]">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <p className="text-xs font-black text-slate-400 uppercase">
+                      total a registrar
+                    </p>
 
-              <button
-                type="submit"
-                className={`w-full py-4 text-white text-base font-bold rounded-2xl shadow-lg transition-all active:scale-[0.98] ${
-                  type === "transferencia"
-                    ? "bg-blue-600 hover:bg-blue-700 shadow-blue-500/30"
-                    : type === "ingreso"
-                      ? "bg-emerald-500 hover:bg-emerald-600 shadow-emerald-500/30"
-                      : "bg-rose-500 hover:bg-rose-600 shadow-rose-500/30"
-                }`}
-              >
-                {initialData ? "guardar cambios" : `confirmar ${type}`}
-              </button>
+                    <p className="text-xs font-bold text-slate-500">
+                      {isTransfer
+                        ? `${fromBrand} → ${toBrand}`
+                        : `${brand} · ${category}`}
+                    </p>
+                  </div>
+
+                  <strong
+                    className={`text-2xl font-black no-lowercase ${
+                      isIncome
+                        ? "text-emerald-600"
+                        : isExpense
+                          ? "text-rose-600"
+                          : "text-blue-600"
+                    }`}
+                  >
+                    {FORMATTER.format(
+                      isTransfer
+                        ? parseFloat(transferAmount) || 0
+                        : currentTotal
+                    )}
+                  </strong>
+                </div>
+
+                <button
+                  type="submit"
+                  className={`w-full py-4 text-white text-base font-black rounded-2xl shadow-lg transition-all active:scale-[0.98] ${
+                    isTransfer
+                      ? "bg-blue-600 hover:bg-blue-700 shadow-blue-500/30"
+                      : isIncome
+                        ? "bg-emerald-500 hover:bg-emerald-600 shadow-emerald-500/30"
+                        : "bg-rose-500 hover:bg-rose-600 shadow-rose-500/30"
+                  }`}
+                >
+                  {actionLabel}
+                </button>
+              </div>
             </form>
           </div>
         )}

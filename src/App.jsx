@@ -4,14 +4,14 @@ import ViewHistorial from "./views/ViewHistorial";
 import ViewPresupuestos from "./views/ViewPresupuestos";
 import ViewInformes from "./views/ViewInformes";
 import ViewConfiguracion from "./views/ViewConfiguracion";
-
 import AddTransactionModal from "./components/transactions/AddTransactionModal";
-
 import DesktopSidebar from "./components/layout/DesktopSidebar";
 import AppHeader from "./components/layout/AppHeader";
 import MobileBottomNav from "./components/layout/MobileBottomNav";
 
+import { useState } from "react";
 import { useAppContext } from "./context/AppContext";
+import { useToast } from "./context/ToastContext";
 
 import useUiState from "./hooks/useUiState";
 import useMonthNavigation from "./hooks/useMonthNavigation";
@@ -47,6 +47,8 @@ export default function App() {
     monthlyTrendData,
   } = useAppContext();
 
+  const { showToast } = useToast();
+
   const { currentTab, setCurrentTab } = useNavigationState();
 
   const {
@@ -65,6 +67,25 @@ export default function App() {
     addTransaction,
     updateTransaction,
   });
+
+  const handleSaveAndShowImpact = (data) => {
+    handleSave(data);
+
+    setCurrentTab("inicio");
+    setDashboardPulse(true);
+
+    showToast({
+      title: data.id
+        ? "movimiento actualizado"
+        : "movimiento registrado",
+    });
+
+    setTimeout(() => {
+      setDashboardPulse(false);
+    }, 1200);
+  };
+
+  const [dashboardPulse, setDashboardPulse] = useState(false);
 
   return (
     <div className="min-h-screen bg-[#f4f7fa] text-slate-900 flex overflow-hidden selection:bg-purple-200">
@@ -89,6 +110,9 @@ export default function App() {
               <ViewInicio
                 global={global}
                 monthlySummary={monthlySummary}
+                byBrand={byBrand}
+                onOpenCompanies={() => setCurrentTab("empresas")}
+                highlight={dashboardPulse}
               />
             )}
 
@@ -151,7 +175,7 @@ export default function App() {
       <AddTransactionModal
         isOpen={isModalOpen}
         onClose={closeModal}
-        onSave={handleSave}
+        onSave={handleSaveAndShowImpact}
         initialData={editingTxn}
         settings={settings}
       />

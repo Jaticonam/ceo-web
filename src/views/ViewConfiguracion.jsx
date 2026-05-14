@@ -1,19 +1,20 @@
-import { useState } from "react";
-import { Store, Trash2 } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Edit2, Plus, Store, Trash2 } from "lucide-react";
 
-import Card from "../components/ui/Card";
+import ConfirmModal from "../components/ui/ConfirmModal";
+import ConfigFormModal from "../components/settings/ConfigFormModal";
+import { useToast } from "../context/ToastContext";
 
-const COLOR_GALLERY = [
-  "bg-blue-500",
-  "bg-emerald-500",
-  "bg-rose-500",
-  "bg-[#6a1b9a]",
-  "bg-amber-500",
-  "bg-cyan-500",
-  "bg-pink-500",
-  "bg-indigo-500",
-  "bg-slate-700",
+const TABS = [
+  { id: "empresas", label: "empresas" },
+  { id: "ingresos", label: "ingresos" },
+  { id: "gastos", label: "gastos" },
+  { id: "metodos", label: "métodos" },
 ];
+
+function normalizeName(value) {
+  return value.trim().toLowerCase();
+}
 
 export default function ViewConfiguracion({
   settings,
@@ -21,274 +22,325 @@ export default function ViewConfiguracion({
   iconGallery,
 }) {
   const [subTab, setSubTab] = useState("empresas");
-  const [newItemName, setNewItemName] = useState("");
-  const [newItemIcon, setNewItemIcon] = useState("store");
-  const [newItemColor, setNewItemColor] = useState("bg-blue-500");
-  const [newItemType, setNewItemType] = useState("bcp");
 
-  const handleAddItem = () => {
-    if (!newItemName.trim()) return;
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [formMode, setFormMode] = useState("create");
+
+  const [name, setName] = useState("");
+  const [icon, setIcon] = useState("store");
+  const [color, setColor] = useState("bg-blue-500");
+  const [methodType, setMethodType] = useState("bcp");
+  const [editingId, setEditingId] = useState(null);
+
+  const [error, setError] = useState("");
+  const [confirmAction, setConfirmAction] = useState(null);
+
+  const { showToast } = useToast();
+
+  const listToRender = useMemo(() => {
+    if (subTab === "empresas") return settings.brands;
+    if (subTab === "ingresos") return settings.categories.ingreso;
+    if (subTab === "gastos") return settings.categories.gasto;
+    return settings.methods;
+  }, [subTab, settings]);
+
+  const activeLabel = TABS.find((tab) => tab.id === subTab)?.label || subTab;
+
+  const resetForm = () => {
+    setName("");
+    setIcon("store");
+    setColor("bg-blue-500");
+    setMethodType("bcp");
+    setEditingId(null);
+    setError("");
+    setFormMode("create");
+  };
+
+  const openCreateModal = () => {
+    resetForm();
+    setFormMode("create");
+    setIsFormOpen(true);
+  };
+
+  const openEditModal = (item) => {
+    setEditingId(item.id);
+    setName(item.name);
+    setIcon(item.icon || "store");
+    setColor(item.color || "bg-blue-500");
+    setMethodType(item.type || "bcp");
+    setFormMode("edit");
+    setError("");
+    setIsFormOpen(true);
+  };
+
+  const closeFormModal = () => {
+    setIsFormOpen(false);
+    resetForm();
+  };
+
+  const buildNextSettings = () => ({
+    ...settings,
+    brands: [...settings.brands],
+    categories: {
+      ingreso: [...settings.categories.ingreso],
+      gasto: [...settings.categories.gasto],
+    },
+    methods: [...settings.methods],
+  });
+
+  const getTargetList = (nextSettings) => {
+    if (subTab === "empresas") return nextSettings.brands;
+    if (subTab === "ingresos") return nextSettings.categories.ingreso;
+    if (subTab === "gastos") return nextSettings.categories.gasto;
+    return nextSettings.methods;
+  };
+
+  const replaceTargetList = (nextSettings, nextList) => {
+    if (subTab === "empresas") nextSettings.brands = nextList;
+    if (subTab === "ingresos") nextSettings.categories.ingreso = nextList;
+    if (subTab === "gastos") nextSettings.categories.gasto = nextList;
+    if (subTab === "metodos") nextSettings.methods = nextList;
+  };
+
+  const saveItem = () => {
+    const cleanName = normalizeName(name);
+    const nextSettings = buildNextSettings();
+    const currentList = getTargetList(nextSettings);
+
+    if (editingId) {
+      replaceTargetList(
+        nextSettings,
+        currentList.map((item) =>
+          item.id === editingId
+            ? {
+                ...item,
+                name: cleanName,
+                icon,
+                color,
+                ...(subTab === "metodos" ? { type: methodType } : {}),
+              }
+            : item
+        )
+      );
+
+      setSettings(nextSettings);
+      showToast({ title: "registro actualizado" });
+      closeFormModal();
+      return;
+    }
 
     const newItem = {
-      id: crypto.randomUUID
-        ? crypto.randomUUID()
-        : Date.now().toString(),
-      name: newItemName.trim().toLowerCase(),
-      icon: newItemIcon,
-      color: newItemColor,
+      id: crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(),
+      name: cleanName,
+      icon,
+      color,
+      ...(subTab === "metodos" ? { type: methodType } : {}),
     };
 
-    const newSettings = {
-      ...settings,
-      brands: [...settings.brands],
-      categories: {
-        ingreso: [...settings.categories.ingreso],
-        gasto: [...settings.categories.gasto],
-      },
-      methods: [...settings.methods],
-    };
+    replaceTargetList(nextSettings, [...currentList, newItem]);
+    setSettings(nextSettings);
+    showToast({ title: "registro creado" });
+    closeFormModal();
+  };
 
-    if (subTab === "empresas") {
-      newSettings.brands.push(newItem);
+  const requestSave = () => {
+    const cleanName = normalizeName(name);
+
+    if (!cleanName) {
+      setError("escribe un nombre.");
+      return;
     }
 
-    if (subTab === "ingresos") {
-      newSettings.categories.ingreso.push(newItem);
+    const exists = listToRender.some(
+      (item) => item.name === cleanName && item.id !== editingId
+    );
+
+    if (exists) {
+      setError("ese nombre ya existe.");
+      return;
     }
 
-    if (subTab === "gastos") {
-      newSettings.categories.gasto.push(newItem);
-    }
+    setError("");
+    setConfirmAction({
+      title: editingId ? "guardar cambios" : "crear registro",
+      message: editingId
+        ? `¿guardar cambios en "${cleanName}"?`
+        : `¿crear "${cleanName}" en ${subTab}?`,
+      confirmText: editingId ? "guardar cambios" : "crear",
+      tone: "primary",
+      onConfirm: saveItem,
+    });
+  };
 
-    if (subTab === "metodos") {
-      newSettings.methods.push({
-        ...newItem,
-        type: newItemType,
+  const handleDelete = (item) => {
+    if (listToRender.length <= 1) {
+      showToast({
+        title: "debe quedar al menos un registro",
+        type: "error",
       });
+      return;
     }
 
-    setSettings(newSettings);
-    setNewItemName("");
-  };
+    setConfirmAction({
+      title: "eliminar registro",
+      message: `¿seguro que quieres eliminar "${item.name}"? esta acción no se puede deshacer.`,
+      confirmText: "eliminar",
+      tone: "danger",
+      onConfirm: () => {
+        const nextSettings = buildNextSettings();
+        const currentList = getTargetList(nextSettings);
+        const updatedList = currentList.filter(
+          (current) => current.id !== item.id
+        );
 
-  const handleDeleteItem = (id) => {
-    const newSettings = {
-      ...settings,
-      brands: [...settings.brands],
-      categories: {
-        ingreso: [...settings.categories.ingreso],
-        gasto: [...settings.categories.gasto],
+        replaceTargetList(nextSettings, updatedList);
+        setSettings(nextSettings);
+        showToast({ title: "registro eliminado" });
       },
-      methods: [...settings.methods],
-    };
-
-    if (subTab === "empresas") {
-      newSettings.brands = newSettings.brands.filter(
-        (item) => item.id !== id
-      );
-    }
-
-    if (subTab === "ingresos") {
-      newSettings.categories.ingreso =
-        newSettings.categories.ingreso.filter(
-          (item) => item.id !== id
-        );
-    }
-
-    if (subTab === "gastos") {
-      newSettings.categories.gasto =
-        newSettings.categories.gasto.filter(
-          (item) => item.id !== id
-        );
-    }
-
-    if (subTab === "metodos") {
-      newSettings.methods = newSettings.methods.filter(
-        (item) => item.id !== id
-      );
-    }
-
-    setSettings(newSettings);
+    });
   };
 
-  const listToRender =
-    subTab === "empresas"
-      ? settings.brands
-      : subTab === "ingresos"
-        ? settings.categories.ingreso
-        : subTab === "gastos"
-          ? settings.categories.gasto
-          : settings.methods;
+  const closeConfirm = () => setConfirmAction(null);
+
+  const confirmAndClose = () => {
+    confirmAction?.onConfirm?.();
+    closeConfirm();
+  };
 
   return (
-    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 max-w-5xl mx-auto">
-      <div className="bg-white p-2 rounded-2xl border border-slate-100 shadow-sm flex overflow-x-auto scrollbar-hide">
-        {["empresas", "ingresos", "gastos", "metodos"].map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setSubTab(tab)}
-            className={`flex-1 py-3 px-6 text-sm font-bold rounded-xl capitalize transition-all whitespace-nowrap ${
-              subTab === tab
-                ? "bg-[#6a1b9a] text-white shadow-md"
-                : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"
-            }`}
-          >
-            {tab}
-          </button>
-        ))}
-      </div>
+    <>
+      <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 max-w-5xl mx-auto">
+        <div className="bg-white p-2 rounded-2xl border border-slate-100 shadow-sm flex overflow-x-auto scrollbar-hide">
+          {TABS.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => {
+                setSubTab(tab.id);
+                resetForm();
+              }}
+              className={`flex-1 py-3 px-6 text-sm font-bold rounded-xl transition-all whitespace-nowrap ${
+                subTab === tab.id
+                  ? "bg-[#6a1b9a] text-white shadow-md"
+                  : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
 
-      <Card className="bg-slate-50/50 border-dashed border-2 border-slate-200">
-        <h3 className="text-lg font-bold text-slate-800 mb-4">
-          crear nuevo registro
-        </h3>
-
-        <div className="space-y-4">
-          <div className="flex gap-4">
-            <div className="flex-1">
-              <label className="text-xs font-bold text-slate-500 block mb-1">
-                nombre
-              </label>
-
-              <input
-                type="text"
-                value={newItemName}
-                onChange={(event) =>
-                  setNewItemName(event.target.value)
-                }
-                placeholder={`ej. ${
-                  subTab === "metodos" ? "paypal" : "nueva marca"
-                }`}
-                className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm font-bold outline-none focus:border-[#6a1b9a]"
-              />
-            </div>
-
-            {subTab === "metodos" && (
-              <div className="w-1/3">
-                <label className="text-xs font-bold text-slate-500 block mb-1">
-                  clasificación financiera
-                </label>
-
-                <select
-                  value={newItemType}
-                  onChange={(event) =>
-                    setNewItemType(event.target.value)
-                  }
-                  className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm font-bold outline-none focus:border-[#6a1b9a]"
-                >
-                  <option value="bcp">bancos (digital)</option>
-                  <option value="cash">efectivo (físico)</option>
-                  <option value="yape">billeteras (yape/plin)</option>
-                </select>
-              </div>
-            )}
-          </div>
-
+        <section className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
-            <label className="text-xs font-bold text-slate-500 block mb-2">
-              elige un icono
-            </label>
-
-            <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-              {Object.keys(iconGallery).map((iconKey) => {
-                const Icon = iconGallery[iconKey] || Store;
-
-                return (
-                  <button
-                    key={iconKey}
-                    type="button"
-                    onClick={() => setNewItemIcon(iconKey)}
-                    className={`p-3 rounded-xl border flex-shrink-0 transition-all ${
-                      newItemIcon === iconKey
-                        ? "bg-white border-[#6a1b9a] text-[#6a1b9a] shadow-sm"
-                        : "bg-transparent border-transparent text-slate-400 hover:bg-slate-100"
-                    }`}
-                  >
-                    <Icon size={20} />
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          <div>
-            <label className="text-xs font-bold text-slate-500 block mb-2">
-              elige un color
-            </label>
-
-            <div className="flex gap-3">
-              {COLOR_GALLERY.map((color) => (
-                <button
-                  key={color}
-                  type="button"
-                  onClick={() => setNewItemColor(color)}
-                  className={`w-8 h-8 rounded-full ${color} ${
-                    newItemColor === color
-                      ? "ring-4 ring-offset-2 ring-slate-300"
-                      : ""
-                  } transition-all`}
-                />
-              ))}
-            </div>
+            <h2 className="text-xl md:text-2xl font-black text-slate-800">
+              {activeLabel}
+            </h2>
+            <p className="text-sm font-bold text-slate-400 mt-1">
+              {listToRender.length} registros configurados
+            </p>
           </div>
 
           <button
             type="button"
-            onClick={handleAddItem}
-            disabled={!newItemName.trim()}
-            className="mt-4 px-6 py-3 bg-[#6a1b9a] text-white text-sm font-bold rounded-xl shadow-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-purple-800 transition-colors"
+            onClick={openCreateModal}
+            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#6a1b9a] px-5 py-3 text-sm font-bold text-white shadow-lg shadow-purple-500/25 hover:bg-purple-800 transition-all"
           >
-            guardar {subTab}
+            <Plus size={18} />
+            nuevo
           </button>
-        </div>
-      </Card>
+        </section>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-        {listToRender.map((item) => {
-          const Icon = iconGallery[item.icon] || Store;
+        {listToRender.length === 0 ? (
+          <div className="rounded-[2rem] border border-dashed border-slate-200 bg-white p-10 text-center shadow-sm">
+            <p className="text-lg font-black text-slate-700">
+              todavía no hay registros
+            </p>
+            <p className="text-sm font-bold text-slate-400 mt-2">
+              crea el primero para iniciar la configuración
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+            {listToRender.map((item) => {
+              const Icon = iconGallery[item.icon] || Store;
 
-          return (
-            <div
-              key={item.id}
-              className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between group"
-            >
-              <div className="flex items-center space-x-3">
+              return (
                 <div
-                  className={`p-2 rounded-xl ${item.color} text-white`}
+                  key={item.id}
+                  className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between"
                 >
-                  <Icon size={18} />
+                  <div className="flex items-center space-x-3 min-w-0">
+                    <div className={`p-2 rounded-xl ${item.color} text-white`}>
+                      <Icon size={18} />
+                    </div>
+
+                    <div className="min-w-0">
+                      <p className="text-sm font-bold text-slate-800 capitalize truncate">
+                        {item.name}
+                      </p>
+
+                      {item.type && (
+                        <p className="text-[10px] text-slate-400 font-bold uppercase">
+                          {item.type === "bcp"
+                            ? "bancos"
+                            : item.type === "cash"
+                              ? "efectivo"
+                              : "billeteras"}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => openEditModal(item)}
+                      className="text-slate-300 hover:text-blue-500 p-2"
+                    >
+                      <Edit2 size={16} />
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(item)}
+                      className="text-slate-300 hover:text-rose-500 p-2"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
                 </div>
-
-                <div>
-                  <p className="text-sm font-bold text-slate-800 capitalize">
-                    {item.name}
-                  </p>
-
-                  {item.type && (
-                    <p className="text-[10px] text-slate-400 font-bold uppercase">
-                      {item.type === "bcp"
-                        ? "bancos"
-                        : item.type === "cash"
-                          ? "efectivo"
-                          : "billeteras"}
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              {listToRender.length > 1 && (
-                <button
-                  type="button"
-                  onClick={() => handleDeleteItem(item.id)}
-                  className="text-slate-300 hover:text-rose-500 p-2 opacity-0 group-hover:opacity-100 transition-all"
-                >
-                  <Trash2 size={16} />
-                </button>
-              )}
-            </div>
-          );
-        })}
+              );
+            })}
+          </div>
+        )}
       </div>
-    </div>
+
+      <ConfigFormModal
+        isOpen={isFormOpen}
+        mode={formMode}
+        subTab={subTab}
+        name={name}
+        setName={setName}
+        icon={icon}
+        setIcon={setIcon}
+        color={color}
+        setColor={setColor}
+        methodType={methodType}
+        setMethodType={setMethodType}
+        error={error}
+        iconGallery={iconGallery}
+        onSave={requestSave}
+        onClose={closeFormModal}
+      />
+
+      <ConfirmModal
+        isOpen={Boolean(confirmAction)}
+        title={confirmAction?.title}
+        message={confirmAction?.message}
+        confirmText={confirmAction?.confirmText}
+        tone={confirmAction?.tone}
+        onConfirm={confirmAndClose}
+        onCancel={closeConfirm}
+      />
+    </>
   );
 }
